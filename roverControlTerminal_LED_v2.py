@@ -9,11 +9,11 @@ from gpiozero.pins.lgpio import LGPIOFactory
 
 factory = LGPIOFactory()
 
-# --- Pins (BCM numbering) ---
-PIN_BTN_MODE  = 20  # Button (MODE)
-PIN_BTN_ESTOP = 21  # Button (ESTOP)
-PIN_LED_MODE  = 16  # LED (MODE)   -> physical pin 36
-PIN_LED_ESTOP = 26  # LED (ESTOP)  -> physical pin 37
+# --- Pins (BCM) ---
+PIN_BTN_MODE   = 20
+PIN_BTN_ESTOP  = 21
+PIN_LED_MODE   = 22   # safe
+PIN_LED_ESTOP  = 25   # safe
 
 btn_mode  = Button(PIN_BTN_MODE,  pull_up=False, bounce_time=0.05, pin_factory=factory)
 btn_estop = Button(PIN_BTN_ESTOP, pull_up=False, bounce_time=0.05, pin_factory=factory)
@@ -48,7 +48,6 @@ def set_state(new_state: State):
 def cycle_mode():
     global mode_index
     if state == State.ESTOP:
-        # If in ESTOP, restore the last mode (no advance)
         set_state(MODES[mode_index])
         return
     mode_index = (mode_index + 1) % len(MODES)
@@ -59,7 +58,6 @@ def press_mode():
     cycle_mode()
 
 def press_estop():
-    # Pulse the ESTOP LED and immediately enter ESTOP
     pulse_estop_led()
     set_state(State.ESTOP)
 
@@ -99,7 +97,7 @@ try:
                 led_mode.off()
                 print(f"[{strftime('%H:%M:%S')}] MODE LED OFF")
 
-        # ESTOP LED window — allowed even during ESTOP so you see the pulse
+        # ESTOP LED window — allowed even during ESTOP
         if now < led_estop_until:
             if not led_estop.is_lit:
                 led_estop.on()
@@ -109,10 +107,9 @@ try:
                 led_estop.off()
                 print(f"[{strftime('%H:%M:%S')}] ESTOP LED OFF")
 
-        # In ESTOP, keep MODE LED off; ESTOP LED is already handled by its timer above
-        if state == State.ESTOP:
-            if led_mode.is_lit:
-                led_mode.off()
+        # In ESTOP, keep MODE LED off; ESTOP LED is handled by its timer
+        if state == State.ESTOP and led_mode.is_lit:
+            led_mode.off()
 
         sleep(0.01)
 finally:
